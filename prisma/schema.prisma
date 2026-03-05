@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── CORE AUTH ───────────────────────────────────────────────────────
+model User {
+  id              String              @id @default(cuid())
+  email           String              @unique
+  name            String?
+  password        String?
+  image           String?
+  emailVerified   DateTime?
+  username        String?             @unique
+  isPublicProfile Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Relations
+  profile              Profile?
+  dailyReadings        DailyReading[]
+  chatMessages         ChatMessage[]
+  subscription         Subscription?
+  accounts             Account[]
+  sessions             Session[]
+  bookmarks            Bookmark[]
+  journalEntries       JournalEntry[]
+  moodEntries          MoodEntry[]
+  compatibilityChecks  CompatibilityCheck[]
+  conversations        Conversation[]
+  streak               Streak?
+  notifications        NotificationPreference?
+  passwordResetTokens  PasswordResetToken[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expires   DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── PROFILE (extended with birth time/location for full chart) ─────
+model Profile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  birthDate   String
+  birthTime   String?  // HH:mm format for rising/moon sign calc
+  birthPlace  String?  // city, country
+  sign        String
+  moonSign    String?
+  risingSign  String?
+  focusArea   String   @default("peace")
+  mood        String   @default("neutral")
+  struggle    String   @default("none")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── DAILY READING ──────────────────────────────────────────────────
+model DailyReading {
+  id          String   @id @default(cuid())
+  userId      String
+  date        String
+  sign        String
+  quote       String
+  theme       String
+  readingText String
+  action      String
+  avoid       String
+  affirmation String   @default("")
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// ─── CHAT (now with conversation threads) ───────────────────────────
+model Conversation {
+  id        String         @id @default(cuid())
+  userId    String
+  title     String         @default("New Chat")
+  topic     String         @default("general") // love, career, general, etc.
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  messages  ChatMessage[]
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ChatMessage {
+  id             String        @id @default(cuid())
+  userId         String
+  conversationId String?
+  role           String
+  content        String
+  liked          Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+// ─── SUBSCRIPTION (now with Stripe) ─────────────────────────────────
+model Subscription {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  tier                String   @default("FREE")
+  aiMessagesUsedToday Int      @default(0)
+  aiMessagesLimit     Int      @default(3)
+  lastResetDate       String?
+  // Stripe fields
+  stripeCustomerId    String?  @unique
+  stripeSubscriptionId String? @unique
+  stripePriceId       String?
+  stripeCurrentPeriodEnd DateTime?
+  billingCycle        String?  // "monthly" | "annual"
+  trialEndsAt         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── COMPATIBILITY HISTORY ──────────────────────────────────────────
+model CompatibilityCheck {
+  id         String   @id @default(cuid())
+  userId     String
+  userSign   String
+  otherSign  String
+  reading    String
+  isBestFriend Boolean @default(false)
+  isBestRomance Boolean @default(false)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── BOOKMARKS / FAVORITES ──────────────────────────────────────────
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // "reading" | "quote" | "chat" | "affirmation"
+  content   String
+  metadata  String?  // JSON: sign, date, theme, etc.
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── JOURNAL / REFLECTIONS ──────────────────────────────────────────
+model JournalEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String
+  content   String
+  prompt    String?  // The reflection prompt that inspired this
+  mood      String?
+  sign      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// ─── MOOD TRACKER ───────────────────────────────────────────────────
+model MoodEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String
+  mood      String   // happy, anxious, etc.
+  energy    Int      @default(5) // 1-10 scale
+  note      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// ─── STREAKS & GAMIFICATION ─────────────────────────────────────────
+model Streak {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  currentStreak Int      @default(0)
+  longestStreak Int      @default(0)
+  lastVisitDate String?
+  totalVisits   Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── NOTIFICATION PREFERENCES ───────────────────────────────────────
+model NotificationPreference {
+  id                 String  @id @default(cuid())
+  userId             String  @unique
+  emailDailyReading  Boolean @default(true)
+  emailWeeklyDigest  Boolean @default(true)
+  pushEnabled        Boolean @default(false)
+  pushSubscription   String? // JSON web push subscription
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

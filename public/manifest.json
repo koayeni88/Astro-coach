@@ -1,0 +1,37 @@
+{
+  "name": "Astro Coach",
+  "short_name": "AstroCoach",
+  "description": "Your personal AI astrology coach — daily readings, birth charts, compatibility, tarot, and cosmic guidance",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0a0a12",
+  "theme_color": "#7c5cff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["lifestyle", "entertainment"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Daily Reading",
+      "url": "/daily",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Ask Coach",
+      "url": "/chat",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Tarot",
+      "url": "/tarot",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    }
+  ]
+}
